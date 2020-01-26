@@ -16,13 +16,16 @@ async def on_ready():
 
 @bot.command()
 async def join(ctx):
-    global voice
-    voice = await ctx.message.author.voice.channel.connect()
+    await ctx.message.author.voice.channel.connect()
     #bot.connect(test)
 
 @bot.command()
 async def leave(ctx):
-    await voice.disconnect()
+    for voice in bot.voice_clients:
+        if voice.channel == ctx.message.author.voice.channel:
+            await voice.disconnect()
+            return
+    await ctx.send("Bot not connected to any channels!")
 
 bot.run(token)
 
