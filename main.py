@@ -1,5 +1,7 @@
 import discord
 import pytube
+import youtube_dl as yt
+import os
 from discord.ext import commands
 from configparser import ConfigParser
 
@@ -22,20 +24,38 @@ async def join(ctx):
 
 @bot.command()
 async def play(ctx, arg):
-    print(arg)
-    query = pytube.YouTube(arg)
-    source = query.streams.filter(audio_codec='opus', only_audio=True).order_by('abr').desc().first()
-    track = source.stream_to_buffer()
-    title = source.title
+    os.remove('song.m4a')
+    params = {
+        'outtmpl' : 'song.m4a',
+        'format': 'bestaudio/best',
+        'postpreocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'opus',
+            'prefferedquality': 128,
+        }],
+    }
+    yt.YoutubeDL(params).download([arg])
     print("Track downloaded!")
-    audio = discord.FFmpegOpusAudio(track, bitrate=160)
+    audio = discord.FFmpegOpusAudio('song.m4a', bitrate=160)
     print("Audio encoded!")
-    msg = "Now playing: " + title
+    #msg = "Now playing: " + title
     for voice in bot.voice_clients:
         if voice.channel == ctx.message.author.voice.channel:
             voice.play(audio)
-            voice.volume = 100
-    #await ctx.send(msg)
+            voice.volume = 50
+    await ctx.send('Song playing!')
+
+@bot.command()
+async def vol(ctx, arg):
+    for voice in bot.voice_clients:
+        if voice.channel == ctx.message.author.voice.channel:
+            voice.volume = int(arg)
+
+@bot.command()
+async def stop(ctx):
+    for voice in bot.voice_clients:
+        if voice.channel == ctx.message.author.voice.channel:
+            voice.stop()
 
 @bot.command()
 async def leave(ctx):
@@ -44,6 +64,7 @@ async def leave(ctx):
             await voice.disconnect()
             return
     await ctx.send("Bot not connected to any channels!")
+
 
 bot.run(token)
 
