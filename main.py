@@ -17,14 +17,34 @@ token = config.get('auth', 'token')
 async def on_ready():
     print("We have logged in as {0.user}")
 
+@bot.event
+async def on_disconnect():
+    try:
+        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        await voice.disconnect()
+        try:
+            os.remove('song.m4a')
+        except FileNotFoundError:
+            pass
+    except AttributeError:
+        pass
+    await ctx.send("Bot terminated.")
+
+
 @bot.command()
 async def join(ctx):
     await ctx.message.author.voice.channel.connect()
-    #bot.connect(test)
+    await ctx.send("Joined "+ str(ctx.message.author.voice.channel))
 
 @bot.command()
 async def play(ctx, arg):
-    os.remove('song.m4a')
+    if discord.utils.get(bot.voice_clients, guild=ctx.guild) is None:
+        print("bob")
+        await join(ctx)
+    try:
+        os.remove('song.m4a')
+    except FileNotFoundError:
+        pass
     params = {
         'outtmpl' : 'song.m4a',
         'format': 'bestaudio/best',
@@ -34,37 +54,57 @@ async def play(ctx, arg):
             'prefferedquality': 128,
         }],
     }
+    title = yt.YoutubeDL(params).extract_info(arg, download=False).get("title", None)
     yt.YoutubeDL(params).download([arg])
-    print("Track downloaded!")
-    audio = discord.FFmpegOpusAudio('song.m4a', bitrate=160)
-    print("Audio encoded!")
-    #msg = "Now playing: " + title
-    for voice in bot.voice_clients:
-        if voice.channel == ctx.message.author.voice.channel:
-            voice.play(audio)
-            voice.volume = 50
-    await ctx.send('Song playing!')
+    audio = discord.FFmpegOpusAudio("song.m4a", bitrate=160)
+    voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+    voice.play(audio)
+    await ctx.send("Now playing: " + title)
 
 @bot.command()
-async def vol(ctx, arg):
-    for voice in bot.voice_clients:
-        if voice.channel == ctx.message.author.voice.channel:
-            voice.volume = int(arg)
+async def pause(ctx):
+    try:
+        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        voice.pause()
+        await ctx.send("Music paused.")
+    except AttributeError:
+        await ctx.send("Bot not connected to any channels!")
+
+@bot.command()
+async def resume(ctx):
+    try:
+        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        voice.resume()
+        await ctx.send("Music resumed!")
+    except AttributeError:
+        await ctx.send("Bot not connected to any channels!")
+
 
 @bot.command()
 async def stop(ctx):
-    for voice in bot.voice_clients:
-        if voice.channel == ctx.message.author.voice.channel:
-            voice.stop()
+    try:
+        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        voice.stop()
+        try:
+            os.remove('song.m4a')
+        except FileNotFoundError:
+            pass
+        await ctx.send("Music stopped.")
+    except AttributeError:
+        await ctx.send("Bot not connected to any channels!")
 
 @bot.command()
 async def leave(ctx):
-    for voice in bot.voice_clients:
-        if voice.channel == ctx.message.author.voice.channel:
-            await voice.disconnect()
-            return
-    await ctx.send("Bot not connected to any channels!")
-
+    try:
+        voice = discord.utils.get(bot.voice_clients, guild=ctx.guild)
+        await voice.disconnect()
+        try:
+            os.remove('song.m4a')
+        except FileNotFoundError:
+            pass
+        await ctx.send("Bot disconnected.")
+    except AttributeError:
+        await ctx.send("Bot not connected to any channels!")
 
 bot.run(token)
 
